@@ -17,21 +17,43 @@ func main() {
 	defer driver.Close()
 
 	session := driver.NewSession(neo4j.SessionConfig{
-		AccessMode: neo4j.AccessModeWrite,
+		AccessMode: neo4j.AccessModeRead,
 	})
 	defer session.Close()
 
-	result, err := session.Run("MATCH (n) RETURN COUNT(n)", map[string]interface{}{})
+	result, err := session.Run("SHOW DATABASES", map[string]interface{}{})
 	if err != nil {
 		log.Fatalf("Query failed: %v", err)
 	}
 
-	if result.Next() {
-		count, _ := result.Record().Get("COUNT(n)")
-		fmt.Printf("Node count: %v\n", count)
+	var databases []string
+	for result.Next() {
+		dbName, _ := result.Record().Get("name")
+		databases = append(databases, dbName.(string))
 	}
 
-	if err = result.Err(); err != nil {
-		log.Fatalf("Error iterating result: %v", err)
+	for _, db := range databases {
+		fmt.Printf("\nCounting nodes in database '%s':\n", db)
+
+		session := driver.NewSession(neo4j.SessionConfig{
+			DatabaseName: db,
+			AccessMode:   neo4j.AccessModeRead,
+		})
+		defer session.Close()
+
+		result, err := session.Run("MATCH (n) RETURN COUNT(n) AS count", map[string]interface{}{})
+		if err != nil {
+			log.Printf("Query failed for database %s: %v", db, err)
+			continue
+		}
+
+		if result.Next() {
+			nodeCount, _ := result.Record().Get("count")
+			fmt.Printf("Total nodes: %v\n", nodeCount)
+		}
+
+		if err = result.Err(); err != nil {
+			log.Printf("Error iterating result for database %s: %v", db, err)
+		}
 	}
 }
