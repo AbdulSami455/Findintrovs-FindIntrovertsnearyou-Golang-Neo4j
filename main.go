@@ -54,6 +54,7 @@ func main() {
 		}
 	}
 */
+
 func calculateMatchScore(driver neo4j.Driver, dbname string, personName1 string, personName2 string) {
 	session := driver.NewSession(neo4j.SessionConfig{DatabaseName: dbname, AccessMode: neo4j.AccessModeRead})
 	defer session.Close()
@@ -233,4 +234,147 @@ func countNodesInDatabase(driver neo4j.Driver, dbName string) (int64, error) {
 	}
 
 	return 0, nil
+}
+
+func findNodeByName(driver neo4j.Driver, dbname string, personName string) {
+	session := driver.NewSession(neo4j.SessionConfig{DatabaseName: dbname, AccessMode: neo4j.AccessModeRead})
+	defer session.Close()
+
+	query := `
+		MATCH (n:Person {name: $name})
+		RETURN n
+	`
+
+	params := map[string]interface{}{
+		"name": personName,
+	}
+
+	result, err := session.Run(query, params)
+	if err != nil {
+		log.Fatalf("Failed to find node: %v", err)
+	}
+
+	if result.Next() {
+		node := result.Record().Values[0]
+		fmt.Printf("Node found: %v\n", node)
+	} else {
+		fmt.Printf("No node found with name '%s'\n", personName)
+	}
+}
+
+func createRelationship(driver neo4j.Driver, dbname string, person1 string, person2 string, relationshipType string) {
+	session := driver.NewSession(neo4j.SessionConfig{DatabaseName: dbname, AccessMode: neo4j.AccessModeWrite})
+	defer session.Close()
+
+	query := `
+		MATCH (a:Person {name: $name1}), (b:Person {name: $name2})
+		MERGE (a)-[r:%s]->(b)
+		RETURN r
+	`
+
+	query = fmt.Sprintf(query, relationshipType)
+
+	params := map[string]interface{}{
+		"name1": person1,
+		"name2": person2,
+	}
+
+	result, err := session.Run(query, params)
+	if err != nil {
+		log.Fatalf("Failed to create relationship: %v", err)
+	}
+
+	if result.Next() {
+		fmt.Printf("Relationship '%s' created between '%s' and '%s'\n", relationshipType, person1, person2)
+	} else {
+		fmt.Printf("Failed to create relationship: No matching nodes found\n")
+	}
+}
+
+func getRelationships(driver neo4j.Driver, dbname string, personName string) {
+	session := driver.NewSession(neo4j.SessionConfig{DatabaseName: dbname, AccessMode: neo4j.AccessModeRead})
+	defer session.Close()
+
+	query := `
+		MATCH (n:Person {name: $name})-[r]-(m)
+		RETURN type(r) AS relationship, m.name AS relatedNode
+	`
+
+	params := map[string]interface{}{
+		"name": personName,
+	}
+
+	result, err := session.Run(query, params)
+	if err != nil {
+		log.Fatalf("Failed to get relationships: %v", err)
+	}
+
+	fmt.Printf("Relationships for '%s':\n", personName)
+
+	for result.Next() {
+		record := result.Record()
+
+		relationship, _ := record.Get("relationship")
+		relatedNode, _ := record.Get("relatedNode")
+
+		fmt.Printf("- %s -> %s\n", relationship, relatedNode)
+	}
+
+	if err := result.Err(); err != nil {
+		log.Fatalf("Error iterating result: %v", err)
+	}
+}
+
+func updateNodeProperties(driver neo4j.Driver, dbname string, personName string, properties map[string]interface{}) {
+	session := driver.NewSession(neo4j.SessionConfig{DatabaseName: dbname, AccessMode: neo4j.AccessModeWrite})
+	defer session.Close()
+
+	setClauses := ""
+	for key := range properties {
+		setClauses += fmt.Sprintf("n.%s = $%s, ", key, key)
+	}
+	setClauses = setClauses[:len(setClauses)-2]
+
+	query := fmt.Sprintf(`
+		MATCH (n:Person {name: $name})
+		SET %s
+	`, setClauses)
+
+	params := map[string]interface{}{
+		"name": personName,
+	}
+	for key, value := range properties {
+		params[key] = value
+	}
+
+	_, err := session.Run(query, params)
+	if err != nil {
+		log.Fatalf("Failed to update properties: %v", err)
+	}
+
+	fmt.Printf("Properties for '%s' updated successfully\n", personName)
+}
+
+func countRelationships(driver neo4j.Driver, dbname string, personName string) {
+	session := driver.NewSession(neo4j.SessionConfig{DatabaseName: dbname, AccessMode: neo4j.AccessModeRead})
+	defer session.Close()
+
+	query := `
+		MATCH (n:Person {name: $name})-[r]-()
+		RETURN COUNT(r) AS relationshipCount
+	`
+
+	params := map[string]interface{}{
+		"name": personName,
+	}
+
+	result, err := session.Run(query, params)
+	if err != nil {
+		log.Fatalf("Failed to count relationships: %v", err)
+	}
+
+	if result.Next() {
+		count := result.Record().Values[0].(int64)
+		fmt.Printf("Node '%s' has %d relationships\n", personName, count)
+	}
 }
