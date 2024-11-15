@@ -35,6 +35,7 @@ func main() {
 	//createdatabase(driver, "introverts")
 	//deleteallnodes(driver, "neo4j")
 	createnodeinDatabase(driver, "neo4j", "Abdul Sami")
+	addOrUpdateProperty(driver, "neo4j", "Abdul Sami", "email", "as1987137@gmail.com")
 }
 
 /*
@@ -74,6 +75,34 @@ func createnodeinDatabase(driver neo4j.Driver, dbname string, personName string)
 	fmt.Printf("Person node with name '%s' created successfully\n", personName)
 }
 
+func addOrUpdateProperty(driver neo4j.Driver, dbname string, personName string, propertyName string, propertyValue interface{}) {
+	session := driver.NewSession(neo4j.SessionConfig{DatabaseName: dbname, AccessMode: neo4j.AccessModeWrite})
+	defer session.Close()
+
+	query := `
+		MATCH (n:Person {name: $name})
+		SET n[$property] = $value
+		RETURN n
+	`
+
+	params := map[string]interface{}{
+		"name":     personName,
+		"property": propertyName,
+		"value":    propertyValue,
+	}
+
+	result, err := session.Run(query, params)
+	if err != nil {
+		log.Fatalf("Failed to update property: %v", err)
+	}
+
+	if result.Next() {
+		fmt.Printf("Property '%s' updated/added successfully for person '%s'\n", propertyName, personName)
+	} else {
+		fmt.Printf("No person with name '%s' found. Property '%s' not updated.\n", personName, propertyName)
+	}
+}
+
 func essentialNodeData(driver neo4j.Driver, dbname string, personName string, personAge int, personGender string, personOccupation string, personInstitute string) {
 	session := driver.NewSession(neo4j.SessionConfig{DatabaseName: dbname, AccessMode: neo4j.AccessModeWrite})
 	defer session.Close()
@@ -92,7 +121,6 @@ func essentialNodeData(driver neo4j.Driver, dbname string, personName string, pe
 		"institute":  personInstitute,
 	}
 
-	// Execute the query
 	result, err := session.Run(query, params)
 	if err != nil {
 		log.Fatalf("Failed to upsert node: %v", err)
