@@ -13,26 +13,58 @@ func main() {
 		log.Fatalf("Failed to initialize driver: %v", err)
 	}
 	defer driver.Close()
+	/*
+		databases, err := listDatabases(driver)
 
-	databases, err := listDatabases(driver)
-
-	if err != nil {
-		log.Fatalf("Failed to list databases: %v", err)
-	}
-
-	for _, db := range databases {
-		fmt.Printf("\nCounting nodes in database '%s':\n", db)
-		nodeCount, err := countNodesInDatabase(driver, db)
 		if err != nil {
-			log.Printf("Failed to count nodes in database %s: %v", db, err)
-			continue
+			log.Fatalf("Failed to list databases: %v", err)
 		}
-		fmt.Printf("Total nodes: %v\n", nodeCount)
-	}
 
-	createnodeinDatabase(driver, "neo4j")
+		for _, db := range databases {
+			fmt.Printf("\nCounting nodes in database '%s':\n", db)
+			nodeCount, err := countNodesInDatabase(driver, db)
+			if err != nil {
+				log.Printf("Failed to count nodes in database %s: %v", db, err)
+				continue
+			}
+			fmt.Printf("Total nodes: %v\n", nodeCount)
+		}
+
+		createnodeinDatabase(driver, "neo4j")
+	*/
+	//createdatabase(driver, "introverts")
+	deleteallnodes(driver, "neo4j")
 }
 
+/*
+func createdatabase(driver neo4j.Driver, dbname string) {
+	session := driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
+	defer session.Close()
+
+	result, err := session.Run(fmt.Sprintf("CREATE DATABASE %s", dbname), map[string]interface{}{})
+	if err != nil {
+		log.Fatalf("Failed to create database: %v", err)
+	}
+
+	if err := result.Err(); err != nil {
+		log.Fatalf("Error creating database: %v", err)
+	}
+}
+*/
+
+func deleteallnodes(driver neo4j.Driver, dbname string) {
+	session := driver.NewSession(neo4j.SessionConfig{DatabaseName: dbname, AccessMode: neo4j.AccessModeWrite})
+	defer session.Close()
+
+	result, err := session.Run("MATCH (n) DETACH DELETE n", map[string]interface{}{})
+	if err != nil {
+		log.Fatalf("Failed to delete nodes: %v", err)
+	}
+	if err := result.Err(); err != nil {
+		log.Fatalf("Error deleting nodes: %v", err)
+	}
+
+}
 func initializeDriver(uri string, auth neo4j.AuthToken) (neo4j.Driver, error) {
 	driver, err := neo4j.NewDriver(uri, auth)
 	if err != nil {
