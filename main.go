@@ -33,7 +33,8 @@ func main() {
 		createnodeinDatabase(driver, "neo4j")
 	*/
 	//createdatabase(driver, "introverts")
-	deleteallnodes(driver, "neo4j")
+	//deleteallnodes(driver, "neo4j")
+	createnodeinDatabase(driver, "neo4j", "Abdul Sami")
 }
 
 /*
@@ -51,6 +52,58 @@ func createdatabase(driver neo4j.Driver, dbname string) {
 	}
 }
 */
+
+func createnodeinDatabase(driver neo4j.Driver, dbname string, personName string) {
+	session := driver.NewSession(neo4j.SessionConfig{DatabaseName: dbname, AccessMode: neo4j.AccessModeWrite})
+	defer session.Close()
+
+	result, err := session.Run(
+		"CREATE (n:Person {name: $name})",
+		map[string]interface{}{
+			"name": personName,
+		},
+	)
+	if err != nil {
+		log.Fatalf("Failed to create node: %v", err)
+	}
+
+	if err := result.Err(); err != nil {
+		log.Fatalf("Error creating node: %v", err)
+	}
+
+	fmt.Printf("Person node with name '%s' created successfully\n", personName)
+}
+
+func essentialNodeData(driver neo4j.Driver, dbname string, personName string, personAge int, personGender string, personOccupation string, personInstitute string) {
+	session := driver.NewSession(neo4j.SessionConfig{DatabaseName: dbname, AccessMode: neo4j.AccessModeWrite})
+	defer session.Close()
+
+	query := `
+		MERGE (n:Person {name: $name})
+		ON CREATE SET n.age = $age, n.gender = $gender, n.occupation = $occupation, n.institute = $institute
+		ON MATCH SET n.age = $age, n.gender = $gender, n.occupation = $occupation, n.institute = $institute
+	`
+
+	params := map[string]interface{}{
+		"name":       personName,
+		"age":        personAge,
+		"gender":     personGender,
+		"occupation": personOccupation,
+		"institute":  personInstitute,
+	}
+
+	// Execute the query
+	result, err := session.Run(query, params)
+	if err != nil {
+		log.Fatalf("Failed to upsert node: %v", err)
+	}
+
+	if err := result.Err(); err != nil {
+		log.Fatalf("Error during node creation or update: %v", err)
+	}
+
+	fmt.Printf("Person node with name '%s' created or updated successfully\n", personName)
+}
 
 func deleteallnodes(driver neo4j.Driver, dbname string) {
 	session := driver.NewSession(neo4j.SessionConfig{DatabaseName: dbname, AccessMode: neo4j.AccessModeWrite})
@@ -95,22 +148,6 @@ func listDatabases(driver neo4j.Driver) ([]string, error) {
 	return databases, nil
 }
 
-func createnodeinDatabase(driver neo4j.Driver, dbname string) {
-	session := driver.NewSession(neo4j.SessionConfig{
-		DatabaseName: dbname,
-		AccessMode:   neo4j.AccessModeWrite,
-	})
-	defer session.Close()
-
-	result, err := session.Run("CREATE (n:Node {name: 'Test'}) RETURN n", map[string]interface{}{})
-	if err != nil {
-		log.Fatalf("Failed to create node: %v", err)
-	}
-
-	if err := result.Err(); err != nil {
-		log.Fatalf("Error creating node: %v", err)
-	}
-}
 func countNodesInDatabase(driver neo4j.Driver, dbName string) (int64, error) {
 	session := driver.NewSession(neo4j.SessionConfig{
 		DatabaseName: dbName,
