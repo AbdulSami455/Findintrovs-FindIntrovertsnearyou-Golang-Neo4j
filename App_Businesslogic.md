@@ -20,19 +20,19 @@ Hobbies and Activities (Likes and Dislikes)
 ## Do you listen to music to relax, focus, or uplift your mood?
 ## Are there any genres you dislike or avoid? Why? (e.g., too loud, overwhelming, etc.)
 ## Would you like music recommendations based on your mood or activity?
-Art and Creativity
+# Art and Creativity
 ## Do you enjoy creative hobbies like painting, sketching, writing, or crafting?
 ## Would you like to share your art with like-minded people, or do you prefer keeping it private?
-Are there any creative outlets you dislike or find stressful?
-Outdoors and Nature
-Do you enjoy spending time outdoors? (e.g., hiking, quiet walks, gardening, birdwatching, etc.)
-Would you like suggestions for introvert-friendly outdoor activities or locations?
-Are there any outdoor activities you dislike or avoid? Why?
-Sports and Fitness
-Do you prefer individual sports/activities over team sports? (e.g., yoga, running, swimming, cycling, etc.)
-What fitness-related hobbies do you enjoy?
-Are there any sports or activities you dislike? Why?
-Social Hobbies
-Do you enjoy social activities like gaming, book clubs, or online communities?
-Are there specific types of social hobbies you dislike? (e.g., large group chats, loud parties.)
-Would you prefer asynchronous or scheduled interactions?
+## Are there any creative outlets you dislike or find stressful?
+# Outdoors and Nature
+## Do you enjoy spending time outdoors? (e.g., hiking, quiet walks, gardening, birdwatching, etc.)
+## Would you like suggestions for introvert-friendly outdoor activities or locations?
+## Are there any outdoor activities you dislike or avoid? Why?
+# Sports and Fitness
+## Do you prefer individual sports/activities over team sports? (e.g., yoga, running, swimming, cycling, etc.)
+## What fitness-related hobbies do you enjoy?
+## Are there any sports or activities you dislike? Why?
+# Social Hobbies
+## Do you enjoy social activities like gaming, book clubs, or online communities?
+## Are there specific types of social hobbies you dislike? (e.g., large group chats, loud parties.)
+## Would you prefer asynchronous or scheduled interactions?
