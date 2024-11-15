@@ -34,25 +34,60 @@ func main() {
 	*/
 	//createdatabase(driver, "introverts")
 	//deleteallnodes(driver, "neo4j")
-	createnodeinDatabase(driver, "neo4j", "Abdul Sami")
-	addOrUpdateProperty(driver, "neo4j", "Abdul Sami", "email", "as1987137@gmail.com")
+	//createnodeinDatabase(driver, "neo4j", "Abdullah")
+	//addOrUpdateProperty(driver, "neo4j", "Abdullah", "email", "abdullah1779@gmail.com")
+	calculateMatchScore(driver, "neo4j", "Abdul Sami", "Abdullah")
 }
 
 /*
-func createdatabase(driver neo4j.Driver, dbname string) {
-	session := driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
+	func createdatabase(driver neo4j.Driver, dbname string) {
+		session := driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
+		defer session.Close()
+
+		result, err := session.Run(fmt.Sprintf("CREATE DATABASE %s", dbname), map[string]interface{}{})
+		if err != nil {
+			log.Fatalf("Failed to create database: %v", err)
+		}
+
+		if err := result.Err(); err != nil {
+			log.Fatalf("Error creating database: %v", err)
+		}
+	}
+*/
+func calculateMatchScore(driver neo4j.Driver, dbname string, personName1 string, personName2 string) {
+	session := driver.NewSession(neo4j.SessionConfig{DatabaseName: dbname, AccessMode: neo4j.AccessModeRead})
 	defer session.Close()
 
-	result, err := session.Run(fmt.Sprintf("CREATE DATABASE %s", dbname), map[string]interface{}{})
+	query := `
+		MATCH (p1:Person {name: $name1}), (p2:Person {name: $name2})
+		WITH p1, p2, keys(p1) AS keys1, keys(p2) AS keys2
+		RETURN size([key IN keys1 WHERE key IN keys2]) AS matchCount
+	`
+
+	params := map[string]interface{}{
+		"name1": personName1,
+		"name2": personName2,
+	}
+
+	result, err := session.Run(query, params)
 	if err != nil {
-		log.Fatalf("Failed to create database: %v", err)
+		log.Fatalf("Failed to calculate match score: %v", err)
+	}
+
+	if result.Next() {
+		matchCount, ok := result.Record().Values[0].(int64)
+		if !ok {
+			log.Fatalf("Failed to cast match count to int64")
+		}
+		fmt.Printf("Match score between '%s' and '%s': %d properties matched\n", personName1, personName2, matchCount)
+	} else {
+		fmt.Printf("No matching nodes found for '%s' and '%s'\n", personName1, personName2)
 	}
 
 	if err := result.Err(); err != nil {
-		log.Fatalf("Error creating database: %v", err)
+		log.Fatalf("Error during result iteration: %v", err)
 	}
 }
-*/
 
 func createnodeinDatabase(driver neo4j.Driver, dbname string, personName string) {
 	session := driver.NewSession(neo4j.SessionConfig{DatabaseName: dbname, AccessMode: neo4j.AccessModeWrite})
