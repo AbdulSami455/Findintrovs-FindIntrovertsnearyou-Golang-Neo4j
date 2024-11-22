@@ -8,7 +8,6 @@ import (
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 )
 
-// Create or update a node
 func CreateOrUpdateNodeHandler(c *gin.Context, driver neo4j.Driver) {
 	var input struct {
 		Name       string `json:"name"`

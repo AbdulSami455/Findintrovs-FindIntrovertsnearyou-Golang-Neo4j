@@ -26,7 +26,6 @@ func ListDatabasesHandler(c *gin.Context, driver neo4j.Driver) {
 	c.JSON(http.StatusOK, gin.H{"databases": databases})
 }
 
-// Count nodes in a database
 func CountNodesHandler(c *gin.Context, driver neo4j.Driver) {
 	dbName := c.Param("dbname")
 
