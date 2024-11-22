@@ -92,3 +92,69 @@ func LoginHandler(c *gin.Context, driver neo4j.Driver) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username or password"})
 	}
 }
+
+func ChangePasswordHandler(c *gin.Context, driver neo4j.Driver) {
+	var input struct {
+		Username    string `json:"username"`
+		OldPassword string `json:"old_password"`
+		NewPassword string `json:"new_password"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	session := driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
+	defer session.Close()
+
+	query := `
+		MATCH (u:User {username: $username})
+		RETURN u.password AS password
+	`
+	params := map[string]interface{}{
+		"username": input.Username,
+	}
+
+	result, err := session.Run(query, params)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user data"})
+		return
+	}
+
+	if !result.Next() {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username or password"})
+		return
+	}
+
+	storedHashedPassword, _ := result.Record().Get("password")
+
+	if err := bcrypt.CompareHashAndPassword([]byte(storedHashedPassword.(string)), []byte(input.OldPassword)); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid old password"})
+		return
+	}
+
+	hashedNewPassword, err := bcrypt.GenerateFromPassword([]byte(input.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash new password"})
+		return
+	}
+
+	updateQuery := `
+		MATCH (u:User {username: $username})
+		SET u.password = $newPassword
+		RETURN u.username AS username
+	`
+	updateParams := map[string]interface{}{
+		"username":    input.Username,
+		"newPassword": string(hashedNewPassword),
+	}
+
+	_, err = session.Run(updateQuery, updateParams)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update password"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Password changed successfully"})
+}
