@@ -7,12 +7,11 @@ import (
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 )
 
-func SetupApiRouter(router *gin.Engine, driver neo4j.Driver) *gin.Engine {
+func SetupRouter(driver neo4j.Driver) *gin.Engine {
 	router := gin.Default()
 
 	api := router.Group("/api")
 	{
-
 		api.GET("/databases", func(c *gin.Context) {
 			handlers.ListDatabasesHandler(c, driver)
 		})
@@ -31,7 +30,9 @@ func SetupApiRouter(router *gin.Engine, driver neo4j.Driver) *gin.Engine {
 		api.POST("/register", func(c *gin.Context) {
 			handlers.RegisterHandler(c, driver)
 		})
-
+		api.GET("/authtest", func(c *gin.Context) {
+			handlers.Authtest(c)
+		})
 	}
 
 	return router

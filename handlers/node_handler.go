@@ -26,7 +26,7 @@ func CreateOrUpdateNodeHandler(c *gin.Context, driver neo4j.Driver) {
 	defer session.Close()
 
 	query := `
-		MERGE (n:Person {name: $name})
+		MERGE (n:User {name: $name})
 		ON CREATE SET n.age = $age, n.gender = $gender, n.occupation = $occupation, n.institute = $institute
 		ON MATCH SET n.age = $age, n.gender = $gender, n.occupation = $occupation, n.institute = $institute
 	`

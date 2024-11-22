@@ -8,6 +8,10 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+func Authtest(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"message": "auth test"})
+}
+
 func RegisterHandler(c *gin.Context, driver neo4j.Driver) {
 	var input struct {
 		Username string `json:"username"`

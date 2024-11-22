@@ -15,7 +15,6 @@ func main() {
 	}
 	defer driver.Close()
 
-	router := routers.SetupAuthRouter(driver)
-	router := routers.SetupApiRouter(driver)
+	router := routers.SetupRouter(driver)
 	log.Fatal(router.Run(":8070"))
 }

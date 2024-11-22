@@ -24,7 +24,7 @@ func CreateRelationshipHandler(c *gin.Context, driver neo4j.Driver) {
 	defer session.Close()
 
 	query := fmt.Sprintf(`
-		MATCH (a:Person {name: $person1}), (b:Person {name: $person2})
+		MATCH (a:User {name: $person1}), (b:User {name: $person2})
 		MERGE (a)-[r:%s]->(b)
 	`, input.Relationship)
 
