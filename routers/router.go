@@ -19,7 +19,10 @@ func SetupRouter(driver neo4j.Driver) *gin.Engine {
 			handlers.CountNodesHandler(c, driver)
 		})
 		api.POST("/nodes", func(c *gin.Context) {
-			handlers.CreateOrUpdateNodeHandler(c, driver)
+			handlers.AddEssentailData(c, driver)
+		})
+		api.POST("/nodes/data", func(c *gin.Context) {
+			handlers.AddIntrovertPreferencesHandler(c, driver)
 		})
 		api.POST("/relationships", func(c *gin.Context) {
 			handlers.CreateRelationshipHandler(c, driver)

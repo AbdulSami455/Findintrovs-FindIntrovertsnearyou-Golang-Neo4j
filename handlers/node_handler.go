@@ -8,7 +8,7 @@ import (
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 )
 
-func CreateOrUpdateNodeHandler(c *gin.Context, driver neo4j.Driver) {
+func AddEssentailData(c *gin.Context, driver neo4j.Driver) {
 	var input struct {
 		Name       string `json:"name"`
 		Age        int    `json:"age"`
