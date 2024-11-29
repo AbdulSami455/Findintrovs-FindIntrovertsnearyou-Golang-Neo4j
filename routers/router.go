@@ -39,8 +39,10 @@ func SetupRouter(driver neo4j.Driver) *gin.Engine {
 		api.POST("/change-password", func(c *gin.Context) {
 			handlers.ChangePasswordHandler(c, driver)
 		})
+		api.POST("/AddEssentialData", func(c *gin.Context) {
+			handlers.AddEssentailData(c, driver)
+		})
 
+		return router
 	}
-
-	return router
 }
