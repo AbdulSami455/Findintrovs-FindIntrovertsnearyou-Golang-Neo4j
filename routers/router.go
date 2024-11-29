@@ -25,7 +25,7 @@ func SetupRouter(driver neo4j.Driver) *gin.Engine {
 			handlers.AddIntrovertPreferencesHandler(c, driver)
 		})
 		api.POST("/relationships", func(c *gin.Context) {
-			handlers.CreateRelationshipHandler(c, driver)
+			handlers.CreateSimpleRelationshipHandler(c, driver)
 		})
 		api.POST("/login", func(c *gin.Context) {
 			handlers.LoginHandler(c, driver)
