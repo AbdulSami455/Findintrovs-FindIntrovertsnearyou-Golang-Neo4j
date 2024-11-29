@@ -42,7 +42,9 @@ func SetupRouter(driver neo4j.Driver) *gin.Engine {
 		api.POST("/AddEssentialData", func(c *gin.Context) {
 			handlers.AddEssentailData(c, driver)
 		})
-
+		api.POST("/AddIntrovertPreferences", func(c *gin.Context) {
+			handlers.AddIntrovertPreferencesHandler(c, driver)
+		})
 		return router
 	}
 }
