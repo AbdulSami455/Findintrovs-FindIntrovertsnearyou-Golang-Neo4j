@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
@@ -19,12 +20,24 @@ func CreateSimpleRelationshipHandler(c *gin.Context, driver neo4j.Driver) {
 		return
 	}
 
+	if input.Person1 == "" || input.Person2 == "" || input.Relationship == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "All fields (person1, person2, relationship) are required"})
+		return
+	}
+
+	input.Relationship = strings.ToUpper(input.Relationship)
+	if !isValidRelationshipType(input.Relationship) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid relationship type"})
+		return
+	}
+
 	session := driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
 	defer session.Close()
 
 	query := `
 		MATCH (a:User {username: $person1}), (b:User {username: $person2})
-		CREATE (a)-[:` + input.Relationship + `]->(b)
+		CREATE (a)-[r:` + input.Relationship + `]->(b)
+		RETURN r
 	`
 
 	params := map[string]interface{}{
@@ -32,13 +45,28 @@ func CreateSimpleRelationshipHandler(c *gin.Context, driver neo4j.Driver) {
 		"person2": input.Person2,
 	}
 
-	_, err := session.Run(query, params)
+	result, err := session.Run(query, params)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create relationship: " + err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Relationship created successfully"})
+	if !result.Next() {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Relationship creation failed. Please ensure both users exist."})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Relationship created successfully", "relationship": input.Relationship})
+}
+
+func isValidRelationshipType(relationship string) bool {
+	validRelationships := []string{"FRIENDS", "LIKES", "COLLEAGUES", "FAMILY", "FOLLOWS"}
+	for _, valid := range validRelationships {
+		if relationship == valid {
+			return true
+		}
+	}
+	return false
 }
 
 func MatchPreferencesAndCreateRelationship(c *gin.Context, driver neo4j.Driver) {
