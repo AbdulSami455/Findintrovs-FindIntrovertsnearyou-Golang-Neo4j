@@ -68,8 +68,7 @@ func isValidRelationshipType(relationship string) bool {
 	}
 	return false
 }
-
-func MatchPreferencesAndCreateRelationship(c *gin.Context, driver neo4j.Driver) {
+func MatchAndAssignRelationshipWithAttributes(c *gin.Context, driver neo4j.Driver) {
 	var input struct {
 		Person1 string `json:"person1"`
 		Person2 string `json:"person2"`
@@ -101,9 +100,19 @@ func MatchPreferencesAndCreateRelationship(c *gin.Context, driver neo4j.Driver) 
 				size([x IN a.fitness_hobbies WHERE x IN b.fitness_hobbies]),
 				size([x IN a.social_hobbies WHERE x IN b.social_hobbies])
 			] AS match_counts
-		WITH a, b, reduce(total = 0, count IN match_counts | total + count) AS total_matches
-		CREATE (a)-[r:SIMILAR_PREFERENCES {matches: total_matches}]->(b)
-		RETURN r.matches AS match_count
+		WITH a, b, 
+			match_counts,
+			reduce(total = 0, count IN match_counts | total + count) AS total_matches,
+			CASE
+				WHEN reduce(total = 0, count IN match_counts | total + count) <= 0 THEN 1
+				WHEN reduce(total = 0, count IN match_counts | total + count) >= 100 THEN 10
+				ELSE reduce(total = 0, count IN match_counts | total + count) / 10
+			END AS score
+		MERGE (a)-[r:SIMILARITY_SCORE]->(b)
+		SET r.score = score,
+			r.match_counts = match_counts,
+			r.total_matches = total_matches
+		RETURN r.score AS score, r.match_counts AS match_counts
 	`
 
 	params := map[string]interface{}{
@@ -113,17 +122,19 @@ func MatchPreferencesAndCreateRelationship(c *gin.Context, driver neo4j.Driver) 
 
 	result, err := session.Run(query, params)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process preferences: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process relationship: " + err.Error()})
 		return
 	}
 
 	if result.Next() {
-		matchCount, _ := result.Record().Get("match_count")
+		score, _ := result.Record().Get("score")
+		matchCounts, _ := result.Record().Get("match_counts")
 		c.JSON(http.StatusOK, gin.H{
-			"message":     "Relationship created based on preferences",
-			"match_count": matchCount,
+			"message":      "Relationship assigned successfully",
+			"score":        score,
+			"match_counts": matchCounts,
 		})
 	} else {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Users not found or no matches"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Users not found or no preferences matched"})
 	}
 }

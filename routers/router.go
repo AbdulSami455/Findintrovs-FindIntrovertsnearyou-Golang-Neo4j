@@ -45,6 +45,10 @@ func SetupRouter(driver neo4j.Driver) *gin.Engine {
 		api.POST("/AddIntrovertPreferences", func(c *gin.Context) {
 			handlers.AddIntrovertPreferencesHandler(c, driver)
 		})
+		api.POST("/match-and-assign-with-attributes", func(c *gin.Context) {
+			handlers.MatchAndAssignRelationshipWithAttributes(c, driver)
+		})
+
 		return router
 	}
 }
