@@ -56,23 +56,39 @@ func CreateNodeHandler(c *gin.Context, driver neo4j.Driver) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create node"})
 	}
 }
-func GetNodeByUsernameHandler(c *gin.Context, driver neo4j.Driver) {
-	username := c.Param("username")
-	if username == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Username is required"})
+
+func GetNodeInfoHandler(c *gin.Context, driver neo4j.Driver) {
+	username := c.Query("username")
+	id := c.Query("id")
+
+	if username == "" && id == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Either username or id is required"})
 		return
 	}
 
 	session := driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeRead})
 	defer session.Close()
 
-	query := `
-		MATCH (n:User {username: $username})
-		RETURN n
-	`
+	var query string
+	var params map[string]interface{}
 
-	params := map[string]interface{}{
-		"username": username,
+	if username != "" {
+		query = `
+			MATCH (n:User {username: $username})-[r]->(m)
+			RETURN n, type(r) AS relationship, m
+		`
+		params = map[string]interface{}{
+			"username": username,
+		}
+	} else {
+		query = `
+			MATCH (n:User)-[r]->(m)
+			WHERE n.id = $id
+			RETURN n, type(r) AS relationship, m
+		`
+		params = map[string]interface{}{
+			"id": id,
+		}
 	}
 
 	result, err := session.Run(query, params)
@@ -81,22 +97,52 @@ func GetNodeByUsernameHandler(c *gin.Context, driver neo4j.Driver) {
 		return
 	}
 
-	if result.Next() {
+	var userInfo struct {
+		Node          map[string]interface{} `json:"node"`
+		Relationships []struct {
+			Relationship string                 `json:"relationship"`
+			RelatedNode  map[string]interface{} `json:"related_node"`
+		} `json:"relationships"`
+	}
+	relationships := []struct {
+		Relationship string                 `json:"relationship"`
+		RelatedNode  map[string]interface{} `json:"related_node"`
+	}{}
+
+	nodeRetrieved := false
+	for result.Next() {
 		record := result.Record()
-		node, ok := record.Get("n")
-		if !ok {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve node from record"})
-			return
+
+		if !nodeRetrieved {
+			node, _ := record.Get("n")
+			userNode := node.(neo4j.Node)
+			userInfo.Node = userNode.Props
+			nodeRetrieved = true
 		}
 
-		userNode := node.(neo4j.Node)
-		c.JSON(http.StatusOK, gin.H{
-			"message": "Node retrieved successfully",
-			"data":    userNode.Props,
+		relationship, _ := record.Get("relationship")
+		relatedNode, _ := record.Get("m")
+
+		relationships = append(relationships, struct {
+			Relationship string                 `json:"relationship"`
+			RelatedNode  map[string]interface{} `json:"related_node"`
+		}{
+			Relationship: relationship.(string),
+			RelatedNode:  relatedNode.(neo4j.Node).Props,
 		})
-	} else {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 	}
+
+	userInfo.Relationships = relationships
+
+	if !nodeRetrieved {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "User information retrieved successfully",
+		"data":    userInfo,
+	})
 }
 
 func AddEssentailData(c *gin.Context, driver neo4j.Driver) {

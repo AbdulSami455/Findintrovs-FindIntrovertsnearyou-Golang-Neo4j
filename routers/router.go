@@ -51,14 +51,18 @@ func SetupRouter(driver neo4j.Driver) *gin.Engine {
 		api.DELETE("/relationships", func(c *gin.Context) {
 			handlers.DeleteRelationshipHandler(c, driver)
 		})
-		api.POST("/nodes/create", func(c *gin.Context) {
+		api.POST("/user/create", func(c *gin.Context) {
 			handlers.CreateNodeHandler(c, driver)
 		})
-
-		api.GET("/nodes/:username", func(c *gin.Context) {
-			handlers.GetNodeByUsernameHandler(c, driver)
+		api.GET("/userinfo", func(c *gin.Context) {
+			handlers.GetNodeInfoHandler(c, driver)
 		})
-
+		api.POST("/relationshipinfo", func(c *gin.Context) {
+			handlers.GetRelationshipHandler(c, driver)
+		})
+		api.POST("/allrelationships", func(c *gin.Context) {
+			handlers.GetAllRelationshipsHandler(c, driver)
+		})
 		return router
 	}
 }

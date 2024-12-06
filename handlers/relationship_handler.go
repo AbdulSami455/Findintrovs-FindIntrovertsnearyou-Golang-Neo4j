@@ -146,30 +146,25 @@ func DeleteRelationshipHandler(c *gin.Context, driver neo4j.Driver) {
 		Relationship string `json:"relationship"`
 	}
 
-	// Parse input JSON
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input: " + err.Error()})
 		return
 	}
 
-	// Validate input
 	if input.Person1 == "" || input.Person2 == "" || input.Relationship == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "All fields (person1, person2, relationship) are required"})
 		return
 	}
 
-	// Ensure relationship type is valid
 	input.Relationship = strings.ToUpper(input.Relationship)
 	if !isValidRelationshipType(input.Relationship) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid relationship type"})
 		return
 	}
 
-	// Start a Neo4j session
 	session := driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
 	defer session.Close()
 
-	// Query to delete the specific relationship
 	query := `
 		MATCH (a:User {username: $person1})-[r:` + input.Relationship + `]->(b:User {username: $person2})
 		DELETE r
@@ -187,7 +182,6 @@ func DeleteRelationshipHandler(c *gin.Context, driver neo4j.Driver) {
 		return
 	}
 
-	// Check if any relationships were deleted
 	if result.Next() {
 		deletedCount, _ := result.Record().Get("deletedCount")
 		if deletedCount.(int64) > 0 {
@@ -198,4 +192,116 @@ func DeleteRelationshipHandler(c *gin.Context, driver neo4j.Driver) {
 	} else {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete relationship"})
 	}
+}
+
+func GetRelationshipHandler(c *gin.Context, driver neo4j.Driver) {
+	var input struct {
+		Person1 string `json:"person1"`
+		Person2 string `json:"person2"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input: " + err.Error()})
+		return
+	}
+
+	if input.Person1 == "" || input.Person2 == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Both person1 and person2 fields are required"})
+		return
+	}
+
+	session := driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeRead})
+	defer session.Close()
+
+	query := `
+		MATCH (a:User {username: $person1})-[r]-(b:User {username: $person2})
+		RETURN type(r) AS relationshipName, properties(r) AS attributes
+	`
+
+	params := map[string]interface{}{
+		"person1": input.Person1,
+		"person2": input.Person2,
+	}
+
+	result, err := session.Run(query, params)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query relationship: " + err.Error()})
+		return
+	}
+
+	var relationships []gin.H
+	for result.Next() {
+		record := result.Record()
+		relationshipName, _ := record.Get("relationshipName")
+		attributes, _ := record.Get("attributes")
+
+		relationships = append(relationships, gin.H{
+			"relationship_name": relationshipName,
+			"attributes":        attributes,
+		})
+	}
+
+	if len(relationships) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "No relationship found between the given nodes"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"relationships": relationships})
+}
+
+func GetAllRelationshipsHandler(c *gin.Context, driver neo4j.Driver) {
+	var input struct {
+		Username string `json:"username"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input: " + err.Error()})
+		return
+	}
+
+	if input.Username == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Username is required"})
+		return
+	}
+
+	session := driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeRead})
+	defer session.Close()
+
+	query := `
+		MATCH (n:User {username: $username})-[r]-(other)
+		RETURN type(r) AS relationshipName, properties(r) AS attributes, ID(other) AS relatedNodeId, other.username AS relatedUsername
+	`
+
+	params := map[string]interface{}{
+		"username": input.Username,
+	}
+
+	result, err := session.Run(query, params)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query relationships: " + err.Error()})
+		return
+	}
+
+	var relationships []gin.H
+	for result.Next() {
+		record := result.Record()
+		relationshipName, _ := record.Get("relationshipName")
+		attributes, _ := record.Get("attributes")
+		relatedNodeId, _ := record.Get("relatedNodeId")
+		relatedUsername, _ := record.Get("relatedUsername")
+
+		relationships = append(relationships, gin.H{
+			"relationship_name": relationshipName,
+			"attributes":        attributes,
+			"related_node_id":   relatedNodeId,
+			"related_username":  relatedUsername,
+		})
+	}
+
+	if len(relationships) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "No relationships found for the given user"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"relationships": relationships})
 }
