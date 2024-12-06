@@ -89,7 +89,7 @@ func GetNodeByUsernameHandler(c *gin.Context, driver neo4j.Driver) {
 			return
 		}
 
-		userNode := node.(neo4j.Node) // Type assert to neo4j.Node
+		userNode := node.(neo4j.Node)
 		c.JSON(http.StatusOK, gin.H{
 			"message": "Node retrieved successfully",
 			"data":    userNode.Props,
