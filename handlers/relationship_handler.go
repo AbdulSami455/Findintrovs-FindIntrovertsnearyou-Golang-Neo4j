@@ -138,3 +138,64 @@ func MatchAndAssignRelationshipWithAttributes(c *gin.Context, driver neo4j.Drive
 		c.JSON(http.StatusNotFound, gin.H{"error": "Users not found or no preferences matched"})
 	}
 }
+
+func DeleteRelationshipHandler(c *gin.Context, driver neo4j.Driver) {
+	var input struct {
+		Person1      string `json:"person1"`
+		Person2      string `json:"person2"`
+		Relationship string `json:"relationship"`
+	}
+
+	// Parse input JSON
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input: " + err.Error()})
+		return
+	}
+
+	// Validate input
+	if input.Person1 == "" || input.Person2 == "" || input.Relationship == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "All fields (person1, person2, relationship) are required"})
+		return
+	}
+
+	// Ensure relationship type is valid
+	input.Relationship = strings.ToUpper(input.Relationship)
+	if !isValidRelationshipType(input.Relationship) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid relationship type"})
+		return
+	}
+
+	// Start a Neo4j session
+	session := driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
+	defer session.Close()
+
+	// Query to delete the specific relationship
+	query := `
+		MATCH (a:User {username: $person1})-[r:` + input.Relationship + `]->(b:User {username: $person2})
+		DELETE r
+		RETURN COUNT(r) AS deletedCount
+	`
+
+	params := map[string]interface{}{
+		"person1": input.Person1,
+		"person2": input.Person2,
+	}
+
+	result, err := session.Run(query, params)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete relationship: " + err.Error()})
+		return
+	}
+
+	// Check if any relationships were deleted
+	if result.Next() {
+		deletedCount, _ := result.Record().Get("deletedCount")
+		if deletedCount.(int64) > 0 {
+			c.JSON(http.StatusOK, gin.H{"message": "Relationship deleted successfully"})
+		} else {
+			c.JSON(http.StatusNotFound, gin.H{"error": "No matching relationship found"})
+		}
+	} else {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete relationship"})
+	}
+}

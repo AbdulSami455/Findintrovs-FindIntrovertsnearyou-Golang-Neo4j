@@ -8,6 +8,97 @@ import (
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 )
 
+func CreateNodeHandler(c *gin.Context, driver neo4j.Driver) {
+	var input struct {
+		Username   string `json:"username"`
+		Age        int    `json:"age"`
+		Gender     string `json:"gender"`
+		Occupation string `json:"occupation"`
+		Institute  string `json:"institute"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	session := driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
+	defer session.Close()
+
+	query := `
+		MERGE (n:User {username: $username})
+		ON CREATE SET n.id = randomUUID(),
+					  n.age = $age,
+					  n.gender = $gender,
+					  n.occupation = $occupation,
+					  n.institute = $institute,
+					  n.created_at = datetime()
+		RETURN n
+	`
+
+	params := map[string]interface{}{
+		"username":   input.Username,
+		"age":        input.Age,
+		"gender":     input.Gender,
+		"occupation": input.Occupation,
+		"institute":  input.Institute,
+	}
+
+	result, err := session.Run(query, params)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if result.Next() {
+		c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Node for username '%s' created or exists", input.Username)})
+	} else {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create node"})
+	}
+}
+func GetNodeByUsernameHandler(c *gin.Context, driver neo4j.Driver) {
+	username := c.Param("username")
+	if username == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Username is required"})
+		return
+	}
+
+	session := driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeRead})
+	defer session.Close()
+
+	query := `
+		MATCH (n:User {username: $username})
+		RETURN n
+	`
+
+	params := map[string]interface{}{
+		"username": username,
+	}
+
+	result, err := session.Run(query, params)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to run query: " + err.Error()})
+		return
+	}
+
+	if result.Next() {
+		record := result.Record()
+		node, ok := record.Get("n")
+		if !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve node from record"})
+			return
+		}
+
+		userNode := node.(neo4j.Node) // Type assert to neo4j.Node
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Node retrieved successfully",
+			"data":    userNode.Props,
+		})
+	} else {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+	}
+}
+
 func AddEssentailData(c *gin.Context, driver neo4j.Driver) {
 	var input struct {
 		Username   string `json:"username"`

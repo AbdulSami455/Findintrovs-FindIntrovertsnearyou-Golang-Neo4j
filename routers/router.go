@@ -48,6 +48,9 @@ func SetupRouter(driver neo4j.Driver) *gin.Engine {
 		api.POST("/match-and-assign-with-attributes", func(c *gin.Context) {
 			handlers.MatchAndAssignRelationshipWithAttributes(c, driver)
 		})
+		api.DELETE("/relationships", func(c *gin.Context) {
+			handlers.DeleteRelationshipHandler(c, driver)
+		})
 
 		return router
 	}
